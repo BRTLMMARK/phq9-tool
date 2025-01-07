@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import requests
 import csv
 import json
+from mangum import Mangum  # Required for AWS Lambda compatibility
 
 app = FastAPI()
 
@@ -78,3 +79,5 @@ def analyze_phq9(client_name: str):
             }
 
     return {"error": f"Client '{client_name}' not found."}
+
+handler = Mangum(app)
