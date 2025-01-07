@@ -1,8 +1,7 @@
 from fastapi import FastAPI, HTTPException
 import requests
 import csv
-import json
-from mangum import Mangum  # Required for AWS Lambda compatibility
+from mangum import Mangum
 
 # Initialize the FastAPI app
 app = FastAPI()
@@ -18,7 +17,7 @@ response_mapping = {
     "Nearly every day": 3,
 }
 
-# Interpretations for PHQ-9 scores
+# Function to interpret PHQ-9 score
 def get_phq9_interpretation(score):
     if score <= 4:
         return "Minimal or none (0-4)"
@@ -31,12 +30,10 @@ def get_phq9_interpretation(score):
     else:
         return "Severe (20-27)"
 
-# Endpoint to check if the API is running
 @app.get("/")
 def root():
     return {"message": "PHQ-9 Tool API is running."}
 
-# Endpoint for analyzing PHQ-9 data
 @app.get("/analyze")
 def analyze_phq9(client_name: str):
     try:
@@ -53,20 +50,20 @@ def analyze_phq9(client_name: str):
         header = next(reader)  # Skip header row
 
         for row in reader:
-            name = row[-1].strip()  # Name is in the last column
+            name = row[-1].strip()  # Client name is in the last column
             if name.lower() == client_name.lower():
-                responses = row[1:-2]  # Extract responses (adjust indexes as needed)
+                responses = row[1:-2]  # Extract PHQ-9 responses
                 total_score = sum(response_mapping.get(r.strip(), 0) for r in responses)
                 interpretation = get_phq9_interpretation(total_score)
 
-                # Primary Impression
+                # Primary impression
                 primary_impression = (
                     "The client may have mild or no mental health concerns."
                     if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
                     else "The client might be experiencing more significant mental health concerns."
                 )
 
-                # Additional Impressions and Suggested Tools
+                # Additional impressions
                 additional_impressions = []
                 suggested_tools = []
 
@@ -82,7 +79,6 @@ def analyze_phq9(client_name: str):
                         "Tools for Well-Being"
                     ]
 
-                # Return the analysis result
                 return {
                     "client_name": client_name,
                     "total_score": total_score,
@@ -92,7 +88,6 @@ def analyze_phq9(client_name: str):
                     "suggested_tools": suggested_tools,
                 }
 
-        # Client not found
         raise HTTPException(status_code=404, detail=f"Client '{client_name}' not found.")
 
     except Exception as e:
