@@ -1,8 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import requests
 import csv
 import json
-from mangum import Mangum  # Required for AWS Lambda compatibility
+from mangum import Mangum
 
 app = FastAPI()
 
@@ -16,9 +16,12 @@ response_mapping = {
 }
 
 def get_random_phrase(condition):
-    with open("phrases_phq9.json", "r") as f:
-        phrases = json.load(f)
-    return random.choice(phrases[condition])
+    try:
+        with open("phrases_phq9.json", "r") as f:
+            phrases = json.load(f)
+        return random.choice(phrases[condition])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading phrases: {e}")
 
 def get_phq9_interpretation(score):
     if score <= 4:
@@ -34,50 +37,57 @@ def get_phq9_interpretation(score):
 
 @app.get("/analyze")
 def analyze_phq9(client_name: str):
-    response = requests.get(PHQ9_URL)
-    response.raise_for_status()
-    data = response.text.splitlines()
+    try:
+        response = requests.get(PHQ9_URL)
+        response.raise_for_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching PHQ-9 data: {e}")
 
-    reader = csv.reader(data)
-    header = next(reader)  # Skip header row
+    try:
+        data = response.text.splitlines()
+        reader = csv.reader(data)
+        header = next(reader)  # Skip header row
 
-    for row in reader:
-        name = row[-1].strip()
-        if name.lower() == client_name.lower():
-            responses = row[1:-2]
-            total_score = sum(response_mapping.get(r.strip(), 0) for r in responses)
-            interpretation = get_phq9_interpretation(total_score)
+        for row in reader:
+            name = row[-1].strip()
+            if name.lower() == client_name.lower():
+                responses = row[1:-2]
+                total_score = sum(response_mapping.get(r.strip(), 0) for r in responses)
+                interpretation = get_phq9_interpretation(total_score)
 
-            primary_impression = (
-                "The client may have mild or no mental health concerns."
-                if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
-                else "The client might be experiencing more significant mental health concerns."
-            )
+                primary_impression = (
+                    "The client may have mild or no mental health concerns."
+                    if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
+                    else "The client might be experiencing more significant mental health concerns."
+                )
 
-            additional_impressions = []
-            suggested_tools = []
+                additional_impressions = []
+                suggested_tools = []
 
-            if interpretation not in ["Minimal or none (0-4)", "Mild (5-9)"]:
-                additional_impressions = [
-                    get_random_phrase("Depression"),
-                    get_random_phrase("Physical Symptoms"),
-                    get_random_phrase("Well-Being"),
-                ]
-                suggested_tools = [
-                    "Tools for Depression",
-                    "Tools for Physical Symptoms",
-                    "Tools for Well-Being",
-                ]
+                if interpretation not in ["Minimal or none (0-4)", "Mild (5-9)"]:
+                    additional_impressions = [
+                        get_random_phrase("Depression"),
+                        get_random_phrase("Physical Symptoms"),
+                        get_random_phrase("Well-Being"),
+                    ]
+                    suggested_tools = [
+                        "Tools for Depression",
+                        "Tools for Physical Symptoms",
+                        "Tools for Well-Being",
+                    ]
 
-            return {
-                "client_name": client_name,
-                "total_score": total_score,
-                "interpretation": interpretation,
-                "primary_impression": primary_impression,
-                "additional_impressions": additional_impressions,
-                "suggested_tools": suggested_tools,
-            }
+                return {
+                    "client_name": client_name,
+                    "total_score": total_score,
+                    "interpretation": interpretation,
+                    "primary_impression": primary_impression,
+                    "additional_impressions": additional_impressions,
+                    "suggested_tools": suggested_tools,
+                }
 
-    return {"error": f"Client '{client_name}' not found."}
+        raise HTTPException(status_code=404, detail=f"Client '{client_name}' not found.")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing PHQ-9 data: {e}")
 
 handler = Mangum(app)
