@@ -1,13 +1,18 @@
+import random
+
 from fastapi import FastAPI, HTTPException
 import requests
 import csv
 import json
 from mangum import Mangum
 
+# Initialize the FastAPI app
 app = FastAPI()
 
+# Define the PHQ-9 URL
 PHQ9_URL = "https://docs.google.com/spreadsheets/d/1D312sgbt_nOsT668iaUrccAzQ3oByUT0peXS8LYL5wg/export?format=csv"
 
+# Define response mapping for the PHQ-9 tool
 response_mapping = {
     "Not at all": 0,
     "Several Days": 1,
@@ -15,6 +20,7 @@ response_mapping = {
     "Nearly every day": 3,
 }
 
+# Function to load random phrases from the JSON file
 def get_random_phrase(condition):
     try:
         with open("phrases_phq9.json", "r") as f:
@@ -23,6 +29,7 @@ def get_random_phrase(condition):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading phrases: {e}")
 
+# Function to interpret the PHQ-9 score
 def get_phq9_interpretation(score):
     if score <= 4:
         return "Minimal or none (0-4)"
@@ -35,6 +42,7 @@ def get_phq9_interpretation(score):
     else:
         return "Severe (20-27)"
 
+# Endpoint to analyze PHQ-9 results
 @app.get("/analyze")
 def analyze_phq9(client_name: str):
     try:
@@ -90,4 +98,5 @@ def analyze_phq9(client_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing PHQ-9 data: {e}")
 
+# Define the handler for Vercel
 handler = Mangum(app)
