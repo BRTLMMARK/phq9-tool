@@ -22,8 +22,14 @@ with open("phrases_phq9.json", "r") as f:
     phrases = json.load(f)
 
 # Function to get a random phrase
-def get_random_phrase(condition):
-    return random.choice(phrases[condition])
+def get_random_phrase(condition, used_phrases):
+    available_phrases = [p for p in phrases[condition] if p not in used_phrases]
+    if available_phrases:
+        phrase = random.choice(available_phrases)
+        used_phrases.add(phrase)
+        return phrase
+    else:
+        return "No more unique phrases available."
 
 # Function to calculate PHQ-9 interpretation
 def get_phq9_interpretation(score):
@@ -54,6 +60,7 @@ def analyze_phq9(client_name: str):
     try:
         reader = csv.reader(data)
         header = next(reader)
+        used_phrases = set()
 
         for row in reader:
             name = row[-1].strip()
@@ -63,25 +70,19 @@ def analyze_phq9(client_name: str):
                 interpretation = get_phq9_interpretation(total_score)
 
                 primary_impression = (
-                    "The client may have mild or no mental health concerns."
+                    f"Based on the results, it seems that {client_name} is experiencing {interpretation.lower()}. "
+                    "This suggests that their current mental health state is within this range."
                     if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
-                    else "The client might be experiencing more significant mental health concerns."
+                    else f"The results indicate that {client_name} may be dealing with {interpretation.lower()}. This might require further attention or professional consultation."
                 )
 
                 additional_impressions = []
-                suggested_tools = []
 
                 if interpretation not in ["Minimal or none (0-4)", "Mild (5-9)"]:
                     additional_impressions = [
-                        get_random_phrase("Depression"),
-                        get_random_phrase("Physical Symptoms"),
-                        get_random_phrase("Well-Being"),
-                    ]
-
-                    suggested_tools = [
-                        "Tools for Depression",
-                        "Tools for Physical Symptoms",
-                        "Tools for Well-Being",
+                        get_random_phrase("Depression", used_phrases),
+                        get_random_phrase("Physical Symptoms", used_phrases),
+                        get_random_phrase("Well-Being", used_phrases),
                     ]
 
                 return {
@@ -90,7 +91,6 @@ def analyze_phq9(client_name: str):
                     "interpretation": interpretation,
                     "primary_impression": primary_impression,
                     "additional_impressions": additional_impressions,
-                    "suggested_tools": suggested_tools,
                 }
 
         raise HTTPException(status_code=404, detail=f"Client '{client_name}' not found.")
