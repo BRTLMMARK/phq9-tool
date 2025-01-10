@@ -21,7 +21,6 @@ response_mapping = {
 with open("phrases_phq9.json", "r") as f:
     phrases = json.load(f)
 
-# Function to get a random phrase
 def get_random_phrase(condition, used_phrases):
     available_phrases = [p for p in phrases[condition] if p not in used_phrases]
     if available_phrases:
@@ -31,7 +30,6 @@ def get_random_phrase(condition, used_phrases):
     else:
         return "No more unique phrases available."
 
-# Function to calculate PHQ-9 interpretation
 def get_phq9_interpretation(score):
     if score <= 4:
         return "Minimal or none (0-4)"
@@ -47,6 +45,10 @@ def get_phq9_interpretation(score):
 @app.get("/")
 def root():
     return {"message": "PHQ-9 Tool API is running."}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "PHQ-9 Tool API is running and accessible."}
 
 @app.get("/analyze")
 def analyze_phq9(client_name: str):
