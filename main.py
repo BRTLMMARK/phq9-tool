@@ -46,7 +46,7 @@ def get_phq9_interpretation(score):
 def root():
     return {"message": "PHQ-9 Tool API is running."}
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "ok", "message": "PHQ-9 Tool API is running and accessible."}
 
