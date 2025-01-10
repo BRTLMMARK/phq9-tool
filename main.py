@@ -61,7 +61,7 @@ def health_check():
     return {"status": "ok", "message": "PHQ-9 Tool API is running and accessible."}
 
 @app.get("/analyze")
-def analyze_phq9(client_name: str):
+def analyze_phq9(first_name: str, last_name: str, middle_name: str = "", suffix: str = ""):
     try:
         response = requests.get(PHQ9_URL)
         response.raise_for_status()
@@ -69,23 +69,26 @@ def analyze_phq9(client_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching PHQ-9 data: {e}")
 
+    # Construct full name using the logic from your accessor
+    client_full_name = f"{first_name} {middle_name} {last_name}".strip() + (f", {suffix}" if suffix else "")
+
     try:
         reader = csv.reader(data)
         header = next(reader)
         used_phrases = set()
 
         for row in reader:
-            name = row[-1].strip()
-            if name.lower() == client_name.lower():
+            name = row[-1].strip()  # Assuming the name is in the last column
+            if name.lower() == client_full_name.lower():
                 responses = row[1:-2]
                 total_score = sum(response_mapping.get(r.strip(), 0) for r in responses)
                 interpretation = get_phq9_interpretation(total_score)
 
                 primary_impression = (
-                    f"Based on the results, it seems that {client_name} is experiencing {interpretation.lower()}. "
+                    f"Based on the results, it seems that {client_full_name} is experiencing {interpretation.lower()}. "
                     "This suggests that their current mental health state is within this range."
                     if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
-                    else f"The results indicate that {client_name} may be dealing with {interpretation.lower()}. This might require further attention or professional consultation."
+                    else f"The results indicate that {client_full_name} may be dealing with {interpretation.lower()}. This might require further attention or professional consultation."
                 )
 
                 additional_impressions = []
@@ -98,15 +101,16 @@ def analyze_phq9(client_name: str):
                     ]
 
                 return {
-                    "client_name": client_name,
+                    "client_full_name": client_full_name,
                     "total_score": total_score,
                     "interpretation": interpretation,
                     "primary_impression": primary_impression,
                     "additional_impressions": additional_impressions,
                 }
 
-        raise HTTPException(status_code=404, detail=f"Client '{client_name}' not found.")
+        raise HTTPException(status_code=404, detail=f"Client '{client_full_name}' not found.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing PHQ-9 data: {e}")
+
 
 handler = Mangum(app)
