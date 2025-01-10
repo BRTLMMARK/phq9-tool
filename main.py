@@ -63,54 +63,36 @@ def health_check():
 @app.get("/analyze")
 def analyze_phq9(first_name: str, last_name: str, middle_name: str = "", suffix: str = ""):
     try:
-        # Fetch the PHQ-9 CSV data
         response = requests.get(PHQ9_URL)
         response.raise_for_status()
         data = response.text.splitlines()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching PHQ-9 data: {e}")
 
-    try:
-        # Parse the CSV data
         reader = csv.reader(data)
         header = next(reader)
-        used_phrases = set()
 
-        # Normalize input for comparison
-        input_name = f"{first_name} {middle_name} {last_name} {suffix}".strip().lower()
+        input_name = f"{first_name} {middle_name} {last_name} {suffix}".strip()
 
         for row in reader:
-            # Extract and normalize name from the CSV
-            row_name = f"{row[-4]} {row[-3]} {row[-2]} {row[-1]}".strip().lower()
+            row_name = f"{row[-4]} {row[-3]} {row[-2]} {row[-1]}".strip()
 
-            if row_name == input_name:
-                responses = row[1:-4]  # Exclude timestamp and name fields
+            if row_name.lower() == input_name.lower():
+                responses = row[1:-4]
                 total_score = sum(response_mapping.get(r.strip(), 0) for r in responses)
                 interpretation = get_phq9_interpretation(total_score)
 
-                # Generate primary and additional impressions
-                primary_impression = (
-                    f"Based on the results, it seems that {first_name} {last_name} is experiencing {interpretation.lower()}. "
-                    "This suggests that their current mental health state is within this range."
-                    if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
-                    else f"The results indicate that {first_name} {last_name} may be dealing with {interpretation.lower()}. This might require further attention or professional consultation."
-                )
-
-                additional_impressions = []
-
-                if interpretation not in ["Minimal or none (0-4)", "Mild (5-9)"]:
-                    additional_impressions = [
-                        get_random_phrase("Depression", used_phrases),
-                        get_random_phrase("Physical Symptoms", used_phrases),
-                        get_random_phrase("Well-Being", used_phrases),
-                    ]
+                primary_impression = f"The results indicate that {input_name.title()} may be dealing with {interpretation.lower()}. This might require further attention or professional consultation."
+                additional_impressions = [
+                    "The analysis suggests the client might be experiencing Depression.",
+                    "Physical symptoms may be affecting the client.",
+                    "The client's overall well-being might require attention."
+                ]
 
                 return {
-                    "client_name": f"{first_name} {middle_name} {last_name} {suffix}".strip(),
+                    "client_name": input_name.title(),
                     "total_score": total_score,
                     "interpretation": interpretation,
                     "primary_impression": primary_impression,
-                    "additional_impressions": additional_impressions,
+                    "additional_impressions": additional_impressions
                 }
 
         raise HTTPException(status_code=404, detail=f"Client '{input_name}' not found.")
