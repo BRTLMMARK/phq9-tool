@@ -80,19 +80,37 @@ def analyze_phq9(first_name: str, last_name: str, middle_name: str = "", suffix:
                 total_score = sum(response_mapping.get(r.strip(), 0) for r in responses)
                 interpretation = get_phq9_interpretation(total_score)
 
-                primary_impression = f"The results indicate that {input_name.title()} may be dealing with {interpretation.lower()}. This might require further attention or professional consultation."
-                additional_impressions = [
-                    "The analysis suggests the client might be experiencing Depression.",
-                    "Physical symptoms may be affecting the client.",
-                    "The client's overall well-being might require attention."
-                ]
+                # Primary impression
+                primary_impression = (
+                    "The client may have mild or no mental health concerns."
+                    if interpretation in ["Minimal or none (0-4)", "Mild (5-9)"]
+                    else "The client might be experiencing more significant mental health concerns."
+                )
+
+                # Additional impressions (only for significant concerns)
+                additional_impressions = []
+                tool_recommendations = []
+
+                if interpretation not in ["Minimal or none (0-4)", "Mild (5-9)"]:
+                    additional_impressions = [
+                        "The analysis suggests the client might be experiencing Depression.",
+                        "Physical symptoms may be affecting the client.",
+                        "The client's overall well-being might require attention."
+                    ]
+
+                    tool_recommendations = [
+                        "Tools for Depression",
+                        "Tools for Physical Symptoms",
+                        "Tools for Well-Being"
+                    ]
 
                 return {
                     "client_name": input_name.title(),
                     "total_score": total_score,
                     "interpretation": interpretation,
                     "primary_impression": primary_impression,
-                    "additional_impressions": additional_impressions
+                    "additional_impressions": additional_impressions,
+                    "tool_recommendations": tool_recommendations
                 }
 
         raise HTTPException(status_code=404, detail=f"Client '{input_name}' not found.")
